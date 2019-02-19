@@ -11,10 +11,9 @@ var (
   messages []string
 )
 
-func broadcast(clients []*net.Conn, msg string) {
+func broadcast(clients []*net.Conn, byt []byte) {
   for i := 0; i < len(clients); i++ {
-    println("Broadcasting:", msg)
-    _, err := (*clients[i]).Write([]byte(msg))
+    _, err := (*clients[i]).Write(byt)
     if err != nil && err != io.EOF {
       panic(err)
     }
@@ -34,8 +33,7 @@ func handleConnection(c net.Conn) {
     }
 
     if num > 0 {
-      msg := fmt.Sprintf("%v:: %s", c.RemoteAddr(), string(buff[:num]))
-      broadcast(clients, msg)
+      broadcast(clients, buff[:num])
     }
   }
 

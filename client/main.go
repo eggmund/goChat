@@ -5,12 +5,13 @@ import (
   "net"
   "bufio"
   "os"
+  "encoding/json"
 
+  "msg"
   "cliID"
-  "json"
 )
 
-func recData(c net.Conn) {
+func recData(c *net.TCPConn) {
   for {
     data := make([]byte, 4096)
     num, err := c.Read(data)
@@ -22,8 +23,11 @@ func recData(c net.Conn) {
   }
 }
 
-func getID(c *net.Conn) cliID.CliID {
-  
+func sendRegularMesage(c *net.TCPConn, content string, author *cliID.CliID) {
+  byt, err := json.Marshal( msg.NewMessage(0, content, author) )
+  if err != nil { panic(err) }
+
+  (*c).Write(byt)
 }
 
 func main() {
@@ -34,15 +38,20 @@ func main() {
   if err != nil { panic(err) }
   defer conn.Close()
 
-  getID(&conn)
   go recData(conn)
+
+  myID := cliID.CliID{
+    IDnum: 0,
+    Username: "egg",
+  }
 
   scanner := bufio.NewScanner(os.Stdin)
 
   for {
     scanner.Scan()
     msg := scanner.Text()
-    _, err = conn.Write([]byte(msg))
+    sendRegularMesage(conn, msg, &myID)
+
     if err != nil { panic(err) }
   }
 }
