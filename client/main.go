@@ -18,7 +18,10 @@ func recData(c *net.TCPConn) {
     if err != nil { panic(err) }
 
     if num > 0 {
-      fmt.Println(string(data[:num]))
+      var m msg.Message
+      err := json.Unmarshal(data[:num], &m)
+      if err != nil { panic(err) }
+      fmt.Printf("%s:: %s\n", m.Author.Username, m.Content)
     }
   }
 }
