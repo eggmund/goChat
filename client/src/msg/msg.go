@@ -1,7 +1,7 @@
 package msg
 
 import (
-  "cliID"
+  "cliTools"
 )
 
 /* Type: 0 = Regular message
@@ -11,10 +11,10 @@ import (
 type Message struct {
   Type uint8
   Content string
-  Author cliID.CliID
+  Author cliTools.CliID
 }
 
-func NewMessage(t uint8, content string, author *cliID.CliID) Message {
+func NewMessage(t uint8, content string, author *cliTools.CliID) Message {
   return Message{
     Type: t,
     Content: content,

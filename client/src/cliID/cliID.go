@@ -1,4 +1,4 @@
-package cliID
+package cliTools
 
 type CliID struct {
   IDnum int32

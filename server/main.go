@@ -4,36 +4,53 @@ import (
   "net"
   "fmt"
   "io"
+
+  "cliTools"
 )
 
 var (
-  clients []*net.Conn
+  clients []*cliTools.CliData
   messages []string
 )
 
-func broadcast(clients []*net.Conn, byt []byte) {
+func broadcast(clients []*cliTools.CliData, byt []byte) {
   for i := 0; i < len(clients); i++ {
-    _, err := (*clients[i]).Write(byt)
+    _, err := (*clients[i]).Conn.Write(byt)
     if err != nil && err != io.EOF {
       panic(err)
     }
   }
 }
 
-func handleConnection(c net.Conn) {
-  for c.RemoteAddr() != nil {
-    buff := make([]byte, 4096)
-    num, err := c.Read(buff)
-    if err != nil {
-      if err != io.EOF {
-        panic(err)
-      } else {
-        break
-      }
-    }
+func initiateCli(c *net.Conn, username string) {
+  
+}
+
+func recData(c *net.Conn) []byte {
+  for {
+    data := make([]byte, 4096)
+    num, err := *c.Read(data)
+    if err != nil { panic(err) }
 
     if num > 0 {
-      broadcast(clients, buff[:num])
+      return data[:num]
+    }
+  }
+}
+
+func handleConnection(c net.Conn) {
+  initiateCli(&c)
+
+  for c.RemoteAddr() != nil {
+    data := recData(&c)
+    var m msg.Message
+    err := json.Unmarshal(data, &m)
+    if err != nil { panic(err) }
+
+    if m.Type == 0 {
+      broadcast(clients, data)
+    } else if m.Type == 1 {
+      initiateCli(&c, m.Content)
     }
   }
 
