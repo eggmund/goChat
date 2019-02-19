@@ -6,6 +6,21 @@ import (
   "io"
 )
 
+var (
+  clients []*net.Conn
+  messages []string
+)
+
+func broadcast(clients []*net.Conn, msg string) {
+  for i := 0; i < len(clients); i++ {
+    println("Broadcasting:", msg)
+    _, err := (*clients[i]).Write([]byte(msg))
+    if err != nil && err != io.EOF {
+      panic(err)
+    }
+  }
+}
+
 func handleConnection(c net.Conn) {
   for c.RemoteAddr() != nil {
     buff := make([]byte, 4096)
@@ -19,7 +34,8 @@ func handleConnection(c net.Conn) {
     }
 
     if num > 0 {
-      fmt.Println(c.RemoteAddr(), ":", string(buff[:num]))
+      msg := fmt.Sprintf("%v:: %s", c.RemoteAddr(), string(buff[:num]))
+      broadcast(clients, msg)
     }
   }
 
@@ -36,6 +52,7 @@ func main() {
   for {
     conn, err := ln.Accept()
     if err != nil { panic(err) }
+    clients = append(clients, &conn)
     fmt.Println("Connected to:", ln.Addr())
 
     go handleConnection(conn)

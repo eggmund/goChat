@@ -5,17 +5,25 @@ import (
   "net"
   "bufio"
   "os"
+
+  "cliID"
+  "json"
 )
 
 func recData(c net.Conn) {
   for {
-    data := make([]byte, 0)
-    _, err := c.Read(data)
+    data := make([]byte, 4096)
+    num, err := c.Read(data)
     if err != nil { panic(err) }
-    if len(data) != 0 {
-      fmt.Println(data)
+
+    if num > 0 {
+      fmt.Println(string(data[:num]))
     }
   }
+}
+
+func getID(c *net.Conn) cliID.CliID {
+  
 }
 
 func main() {
@@ -26,6 +34,7 @@ func main() {
   if err != nil { panic(err) }
   defer conn.Close()
 
+  getID(&conn)
   go recData(conn)
 
   scanner := bufio.NewScanner(os.Stdin)
@@ -35,7 +44,5 @@ func main() {
     msg := scanner.Text()
     _, err = conn.Write([]byte(msg))
     if err != nil { panic(err) }
-
-    fmt.Println(conn.LocalAddr(), ":", msg)
   }
 }
