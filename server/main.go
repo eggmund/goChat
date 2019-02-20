@@ -4,7 +4,9 @@ import (
   "net"
   "fmt"
   "io"
+  "encoding/json"
 
+  "msg"
   "cliTools"
 )
 
@@ -14,6 +16,8 @@ var (
 )
 
 func broadcast(clients []*cliTools.CliData, byt []byte) {
+  fmt.Println("Broadcasting:", string(byt))
+
   for i := 0; i < len(clients); i++ {
     _, err := (*clients[i]).Conn.Write(byt)
     if err != nil && err != io.EOF {
@@ -22,14 +26,31 @@ func broadcast(clients []*cliTools.CliData, byt []byte) {
   }
 }
 
-func initiateCli(c *net.Conn, username string) {
-  
+func initiateCli(c *net.TCPConn) *cliTools.CliData {
+  m := *new(msg.Message)
+  for m.Type != 1 {
+    m, _ = recMsg(c)
+  }
+  usrname, ok := m.Content.(string)
+  if !ok { panic("Not ok :(") }
+
+  byt, err := json.Marshal( msg.NewMessage(1, len(clients), nil) )
+  if err != nil { panic(err) }
+  c.Write(byt)  // Send id num
+
+  return &cliTools.CliData {
+    Conn: c,
+    ID: &cliTools.CliID {
+      IDnum: len(clients),
+      Username: usrname,
+    },
+  }
 }
 
-func recData(c *net.Conn) []byte {
+func recData(c *net.TCPConn) []byte {
   for {
     data := make([]byte, 4096)
-    num, err := *c.Read(data)
+    num, err := c.Read(data)
     if err != nil { panic(err) }
 
     if num > 0 {
@@ -38,19 +59,23 @@ func recData(c *net.Conn) []byte {
   }
 }
 
-func handleConnection(c net.Conn) {
-  initiateCli(&c)
+func recMsg(c *net.TCPConn) (msg.Message, []byte) {
+  data := recData(c)
+  var m msg.Message
+  err := json.Unmarshal(data, &m)
+  if err != nil { panic(err) }
+
+  return m, data
+}
+
+func handleConnection(c *net.TCPConn) {
+  clients = append(clients, initiateCli(c))
+  fmt.Println("New client added:", clients[len(clients)-1].ID.Username)
 
   for c.RemoteAddr() != nil {
-    data := recData(&c)
-    var m msg.Message
-    err := json.Unmarshal(data, &m)
-    if err != nil { panic(err) }
-
+    m, rawData := recMsg(c)
     if m.Type == 0 {
-      broadcast(clients, data)
-    } else if m.Type == 1 {
-      initiateCli(&c, m.Content)
+      broadcast(clients, rawData)
     }
   }
 
@@ -65,9 +90,9 @@ func main() {
   if err != nil { panic(err) }
 
   for {
-    conn, err := ln.Accept()
+    var conn *net.TCPConn
+    conn, err = ln.AcceptTCP()
     if err != nil { panic(err) }
-    clients = append(clients, &conn)
     fmt.Println("Connected to:", ln.Addr())
 
     go handleConnection(conn)

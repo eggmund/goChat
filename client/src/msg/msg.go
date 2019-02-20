@@ -10,11 +10,17 @@ import (
 */
 type Message struct {
   Type uint8
-  Content string
+  Content interface{}
   Author cliTools.CliID
 }
 
-func NewMessage(t uint8, content string, author *cliTools.CliID) Message {
+func NewMessage(t uint8, content interface{}, author *cliTools.CliID) Message {
+  if author == nil {
+    author = &cliTools.CliID {
+      IDnum: -1,
+      Username: "none",
+    }
+  }
   return Message{
     Type: t,
     Content: content,

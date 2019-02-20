@@ -1,6 +1,6 @@
 package cliTools
 
 type CliID struct {
-  IDnum int32
+  IDnum int
   Username string
 }

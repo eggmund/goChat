@@ -11,29 +11,45 @@ import (
   "cliTools"
 )
 
-func recData(c *net.TCPConn) []byte {
-  for {
-    data := make([]byte, 4096)
-    num, err := c.Read(data)
-    if err != nil { panic(err) }
+var (
+  myID *cliTools.CliID
+)
 
-    if num > 0 {
-      return data[:num]
-    }
+func recData(c *net.TCPConn) []byte {
+  var (
+    num int
+    data []byte
+    err error
+  )
+
+  for num == 0 {
+    data = make([]byte, 4096)
+    num, err = c.Read(data)
+    if err != nil { panic(err) }
   }
+
+  return data[:num]
 }
 
 func recNormMessages(c *net.TCPConn) {
   for {
     data := recData(c)
-    var m msg.Message
-    err := json.Unmarshal(data, &m)
-    if err != nil { panic(err) }
+    m := convDataToMsg(data)
 
     if m.Type == 0 {
-      fmt.Printf("%s:: %s\n", m.Author.Username, m.Content)
+      if ms, ok := m.Content.(string); ok {
+        fmt.Printf("%s:: %s\n", m.Author.Username, ms)
+      }
     }
   }
+}
+
+func convDataToMsg(data []byte) msg.Message {
+  var m msg.Message
+  err := json.Unmarshal(data, &m)
+  if err != nil { panic(err) }
+
+  return m
 }
 
 func sendRegularMesage(c *net.TCPConn, content string, author *cliTools.CliID) {
@@ -43,13 +59,30 @@ func sendRegularMesage(c *net.TCPConn, content string, author *cliTools.CliID) {
   (*c).Write(byt)
 }
 
-func getMyIDnum(c *net.TCPConn, username string) int {
+func getMyID(c *net.TCPConn, username string) *cliTools.CliID {
   byt, err := json.Marshal( msg.NewMessage(1, username, nil) )
   if err != nil { panic(err) }
+  c.Write(byt)
 
-  (*c).Write(byt)
+  m := *new(msg.Message)
+  for m.Type != 1 {
+    println("Waiting for message.")
+    m = convDataToMsg(recData(c))
+  }
+  idNum, ok := m.Content.(float64)
+  if !ok { panic("Type assertion failed") }
 
-  return 0
+  println("My id num:", int(idNum))
+
+  return &cliTools.CliID {
+    IDnum: int(idNum),
+    Username: username,
+  }
+}
+
+func initConnection(c *net.TCPConn, username string) {
+  myID = getMyID(c, username)
+  go recNormMessages(c)
 }
 
 func main() {
@@ -66,20 +99,12 @@ func main() {
   defer conn.Close()
 
   println("Connected.")
-  go recNormMessages(conn)
-
-  //getMyIDnum(conn, username)
-
-  myID := cliTools.CliID{
-    IDnum: 0,
-    Username: username,
-  }
-
+  initConnection(conn, username)
 
   for {
     scanner.Scan()
     msg := scanner.Text()
-    sendRegularMesage(conn, msg, &myID)
+    sendRegularMesage(conn, msg, myID)
 
     if err != nil { panic(err) }
   }
