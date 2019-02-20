@@ -12,7 +12,7 @@ import (
 
 var (
   clients []*cliTools.CliData
-  messages []string
+  messages []*msg.Message
 )
 
 func broadcast(clients []*cliTools.CliData, byt []byte) {
@@ -97,10 +97,12 @@ func handleConnection(c *net.TCPConn) {
       if e != nil { panic(err) }
       removeCliAtID(cli.ID.IDnum)
       fmt.Println("Connection closed to:", c.RemoteAddr())
+      fmt.Println("Clients still connected:", len(clients))
       break
     }
     if m.Type == 0 {
       broadcast(clients, rawData)
+      messages = append(messages, &m)
     }
   }
 }
