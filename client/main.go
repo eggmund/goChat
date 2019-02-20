@@ -6,12 +6,16 @@ import (
   "bufio"
   "os"
   "encoding/json"
+  "github.com/gen2brain/raylib-go/raylib"
 
   "msg"
   "cliTools"
 )
 
 var (
+  SCREEN_W int32 = 1000
+  SCREEN_H int32 = 600
+
   myID *cliTools.CliID
 )
 
@@ -80,9 +84,18 @@ func getMyID(c *net.TCPConn, username string) *cliTools.CliID {
   }
 }
 
-func initConnection(c *net.TCPConn, username string) {
-  myID = getMyID(c, username)
-  go recNormMessages(c)
+func initConnection(username string) *net.TCPConn {
+  tcpAddr, err := net.ResolveTCPAddr("tcp", "localhost:6779")
+  if err != nil { panic(err) }
+
+  conn, err := net.DialTCP("tcp", nil, tcpAddr)
+  if err != nil { panic(err) }
+  println("Connected.")
+
+  myID = getMyID(conn, username)
+  go recNormMessages(conn)
+
+  return conn
 }
 
 func main() {
@@ -91,21 +104,27 @@ func main() {
   scanner.Scan()
   username := scanner.Text()
 
-  tcpAddr, err := net.ResolveTCPAddr("tcp", "localhost:6779")
-  if err != nil { panic(err) }
+  conn := initConnection(username)
 
-  conn, err := net.DialTCP("tcp", nil, tcpAddr)
-  if err != nil { panic(err) }
-  defer conn.Close()
+  rl.SetConfigFlags(rl.FlagVsyncHint)
+	rl.InitWindow(SCREEN_W, SCREEN_H, "Gooey")
+  rl.SetTargetFPS(60)
 
-  println("Connected.")
-  initConnection(conn, username)
+  for !rl.WindowShouldClose() {
+    rl.BeginDrawing()
+    rl.ClearBackground(rl.Black)
 
-  for {
-    scanner.Scan()
-    msg := scanner.Text()
-    sendRegularMesage(conn, msg, myID)
-
-    if err != nil { panic(err) }
+    rl.EndDrawing()
   }
+
+  // for {
+  //   scanner.Scan()
+  //   msg := scanner.Text()
+  //   sendRegularMesage(conn, msg, myID)
+  //
+  //   if err != nil { panic(err) }
+  // }
+
+  rl.CloseWindow()
+  conn.Close()
 }
