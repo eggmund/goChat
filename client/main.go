@@ -6,7 +6,6 @@ import (
   "bufio"
   "os"
   "encoding/json"
-  "github.com/gen2brain/raylib-go/raylib"
 
   "msg"
   "cliTools"
@@ -106,25 +105,12 @@ func main() {
 
   conn := initConnection(username)
 
-  rl.SetConfigFlags(rl.FlagVsyncHint)
-	rl.InitWindow(SCREEN_W, SCREEN_H, "Gooey")
-  rl.SetTargetFPS(60)
-
-  for !rl.WindowShouldClose() {
-    rl.BeginDrawing()
-    rl.ClearBackground(rl.Black)
-
-    rl.EndDrawing()
-  }
 
   // for {
   //   scanner.Scan()
   //   msg := scanner.Text()
   //   sendRegularMesage(conn, msg, myID)
-  //
-  //   if err != nil { panic(err) }
   // }
 
-  rl.CloseWindow()
   conn.Close()
 }
