@@ -1,4 +1,8 @@
 #!/bin/bash
 export GOPATH="$PWD/"
 go build
-echo "Done building."
+if [ $? -eq 0 ]; then
+  echo "Done building."
+else
+  return 3;
+fi

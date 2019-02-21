@@ -3,9 +3,10 @@ package main
 import (
   "fmt"
   "net"
-  "bufio"
   "os"
+  "bufio"
   "encoding/json"
+  "github.com/gotk3/gotk3/gtk"
 
   "msg"
   "cliTools"
@@ -14,6 +15,8 @@ import (
 var (
   SCREEN_W int32 = 1000
   SCREEN_H int32 = 600
+  messages []*msg.Message
+  msgTextView *gtk.TextView
 
   myID *cliTools.CliID
 )
@@ -28,7 +31,7 @@ func recData(c *net.TCPConn) []byte {
   for num == 0 {
     data = make([]byte, 4096)
     num, err = c.Read(data)
-    if err != nil { panic(err) }
+    check(err)
   }
 
   return data[:num]
@@ -42,6 +45,8 @@ func recNormMessages(c *net.TCPConn) {
     if m.Type == 0 {
       if ms, ok := m.Content.(string); ok {
         fmt.Printf("%s:: %s\n", m.Author.Username, ms)
+        messages = append(messages, &m)
+        updateTextBuffer(msgTextView, messages)
       }
     }
   }
@@ -50,21 +55,21 @@ func recNormMessages(c *net.TCPConn) {
 func convDataToMsg(data []byte) msg.Message {
   var m msg.Message
   err := json.Unmarshal(data, &m)
-  if err != nil { panic(err) }
+  check(err)
 
   return m
 }
 
 func sendRegularMesage(c *net.TCPConn, content string, author *cliTools.CliID) {
   byt, err := json.Marshal( msg.NewMessage(0, content, author) )
-  if err != nil { panic(err) }
+  check(err)
 
   (*c).Write(byt)
 }
 
 func getMyID(c *net.TCPConn, username string) *cliTools.CliID {
   byt, err := json.Marshal( msg.NewMessage(1, username, nil) )
-  if err != nil { panic(err) }
+  check(err)
   c.Write(byt)
 
   m := *new(msg.Message)
@@ -85,10 +90,10 @@ func getMyID(c *net.TCPConn, username string) *cliTools.CliID {
 
 func initConnection(username string) *net.TCPConn {
   tcpAddr, err := net.ResolveTCPAddr("tcp", "localhost:6779")
-  if err != nil { panic(err) }
+  check(err)
 
   conn, err := net.DialTCP("tcp", nil, tcpAddr)
-  if err != nil { panic(err) }
+  check(err)
   println("Connected.")
 
   myID = getMyID(conn, username)
@@ -102,15 +107,50 @@ func main() {
   println("Enter username:")
   scanner.Scan()
   username := scanner.Text()
-
   conn := initConnection(username)
 
+  gtk.Init(nil)
 
-  // for {
-  //   scanner.Scan()
-  //   msg := scanner.Text()
-  //   sendRegularMesage(conn, msg, myID)
-  // }
+  win := setupWindow("goChat")
+  grid, err := gtk.GridNew()
+  check(err)
+
+  grid.SetOrientation(gtk.ORIENTATION_VERTICAL)
+
+
+  msgScrl, err := gtk.ScrolledWindowNew(nil, nil)
+  check(err)
+
+  msgTextView, err = gtk.TextViewNew()
+  check(err)
+  msgTextView.SetEditable(false)
+
+  msgScrl.Add(msgTextView)
+
+  winW, winH := win.GetSize()
+  msgScrl.SetSizeRequest(winW, winH-30)
+
+  buffer := getTvBuffer(msgTextView)
+  buffer.SetText(getTextBufferFromMessages(messages))
+
+  msgEntry, err := gtk.EntryNew()
+  check(err)
+  msgEntry.Connect("activate", func() {
+    buff, err := msgEntry.GetBuffer()
+    check(err)
+
+    str, err := buff.GetText()
+    check(err)
+    sendRegularMesage(conn, str, myID)
+    buff.SetText("")
+  })
+
+  grid.Add(msgScrl)
+  grid.Add(msgEntry)
+
+  win.Add(grid)
+  win.ShowAll()
+  gtk.Main()
 
   conn.Close()
 }
